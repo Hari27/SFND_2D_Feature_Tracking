@@ -18,6 +18,11 @@
 
 using namespace std;
 
+bool isOnPreceedingVehicle(cv::KeyPoint x)
+{
+    cv::Rect vehicleRect(535, 180, 180, 150);
+    return !vehicleRect.contains(x.pt);
+}
 /* MAIN PROGRAM */
 int main(int argc, const char *argv[])
 {
@@ -63,6 +68,8 @@ int main(int argc, const char *argv[])
         DataFrame frame;
         frame.cameraImg = imgGray;
         dataBuffer.push_back(frame);
+        if(dataBuffer.size() > dataBufferSize)
+            dataBuffer.erase(dataBuffer.begin(), dataBuffer.end() - dataBufferSize);
 
         //// EOF STUDENT ASSIGNMENT
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
@@ -71,7 +78,7 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+        string detectorType = "AKAZE"; //change this string to  HARRIS, FAST, BRISK, ORB, AKAZE, SIFT
 
         //// STUDENT ASSIGNMENT
         //// TASK MP.2 -> add the following keypoint detectors in file matching2D.cpp and enable string-based selection based on detectorType
@@ -81,10 +88,15 @@ int main(int argc, const char *argv[])
         {
             detKeypointsShiTomasi(keypoints, imgGray, false);
         }
+        else if(detectorType.compare("HARRIS") == 0)
+        {
+            detKeypointsHarris(keypoints, imgGray, false);
+        }
         else
         {
-            //...
+            detKeypointsModern(keypoints, imgGray, detectorType, false);
         }
+        
         //// EOF STUDENT ASSIGNMENT
 
         //// STUDENT ASSIGNMENT
@@ -95,7 +107,19 @@ int main(int argc, const char *argv[])
         cv::Rect vehicleRect(535, 180, 180, 150);
         if (bFocusOnVehicle)
         {
-            // ...
+            auto i = keypoints.begin();
+            while(i!= keypoints.end())
+            {
+                int keyptx = (*i).pt.x; // static_cast<int>((*i).pt.x);
+                int keypty =  (*i).pt.y; //static_cast<int>((*i).pt.y);
+                if(keyptx<vehicleRect.x || keyptx>vehicleRect.x + vehicleRect.width || keypty<vehicleRect.y || keypty> vehicleRect.y+vehicleRect.height)
+                {
+                    keypoints.erase(i);
+                }
+                else{
+                    ++i;
+                }
+            }
         }
 
         //// EOF STUDENT ASSIGNMENT
@@ -125,7 +149,7 @@ int main(int argc, const char *argv[])
         //// -> BRIEF, ORB, FREAK, AKAZE, SIFT
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRIEF, ORB, FREAK, AKAZE, SIFT
+        string descriptorType = "BRIEF"; // change the string to BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
         //// EOF STUDENT ASSIGNMENT
 
@@ -156,7 +180,7 @@ int main(int argc, const char *argv[])
 
             // store matches in current data frame
             (dataBuffer.end() - 1)->kptMatches = matches;
-
+            cout << matcherType << "Matching : number of matched points" << matches.size()<<endl;
             cout << "#4 : MATCH KEYPOINT DESCRIPTORS done" << endl;
 
             // visualize matches between current and previous image
